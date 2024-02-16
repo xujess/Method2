@@ -24,7 +24,7 @@ st.write(bids)
 K2 = st.number_input('输入自定义数值 K2', value = 0.93, format="%.2f")
 
 # 设置默认的 Q1s 和 K1s
-default_Q1s = [0.65, 0.7, 0.75, 0.8, 0.85]
+default_Q1s = [0.85, 0.8, 0.75, 0.7, 0.65]
 default_K1s = [0.95, 0.96, 0.97, 0.98, 0.99, 1, 1.01]
 
 # 用户自定义 Q1s 和 K1s 输入
