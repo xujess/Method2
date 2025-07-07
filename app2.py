@@ -140,14 +140,12 @@ if not df.empty:
     
     # 参数注解
     st.markdown(f"""
-    <div style="background-color: #f0f2f6; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
     <small><b>参数注解:</b></small>
     <ul>
       <li><b>A</b> = {A:.6f}。 (计算方式: {A_description})</li>
       <li><b>B</b> = {B:.4f}。 (计算方式: {B_description})</li>
       <li><b>Q2</b> = 1 - Q1。</li>
     </ul>
-    </div>
     """, unsafe_allow_html=True)
 
     # 图表容器
