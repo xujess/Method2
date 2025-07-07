@@ -142,9 +142,9 @@ if not df.empty:
     st.markdown(f"""
     <small><b>参数注解:</b></small>
     <ul>
-      <li><b>A</b> = {A:.6f}。 (计算方式: {A_description})</li>
-      <li><b>B</b> = {B:.4f}。 (计算方式: {B_description})</li>
-      <li><b>Q2</b> = 1 - Q1。</li>
+      <li><b>A</b> = {A:.6f} (计算方式: {A_description})</li>
+      <li><b>B</b> = {B:.4f} (计算方式: {B_description})</li>
+      <li><b>Q2</b> = 1 - Q1</li>
     </ul>
     """, unsafe_allow_html=True)
 
