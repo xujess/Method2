@@ -63,7 +63,21 @@ if G1_percent + G2_percent >= 100:
     st.error("G1和G2的百分比之和不能超过100%。")
     st.stop()
 
-
+# 第5行: B 的来源选择
+st.markdown("---") # 添加分割线
+b_source = st.radio(
+    "选择 B 的值来源:",
+    ('招标控制价', '自定义最高投标限价'),
+    horizontal=True, # 让选项水平排列，更像 "bubble"
+    key="b_source"
+)
+# 根据选择，决定B的值和描述
+if b_source == '自定义最高投标限价':
+    B = st.number_input('输入最高投标限价', value=1.0, format="%.4f")
+    B_description = f"自定义最高投标限价 ({B})"
+else:
+    B = 1.0  # 招标控制价
+    B_description = f"招标控制价 ({B})"
 
 # 设置参数
 control_price = 1
