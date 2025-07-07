@@ -10,15 +10,25 @@ import plotly.express as px
 
 # 自定义标价，可以录入多个，用逗号隔开
 bids = []
-st.title("方法二自定义标价")
+
+st.title("方法二")
+st.header("1. 输入所有有效投标报价")
 input_bids = st.text_input("用逗号分隔开，可录入多个")
 
 if input_bids:
   bids += input_bids.split(",")
   bids = [float(bid) for bid in bids]
+  bids.sort(reverse=True)
 
-st.write(bids)
+if bids:
+    # Create a DataFrame for display with a 1-based index
+    bids_df = pd.DataFrame({
+        '序号': range(1, len(bids) + 1),
+        '投标报价': bids
+    })
+    st.dataframe(bids_df.set_index('序号'))
 
+st.header("2. 调整参数")
 
 # 自定义标价，只能录入一个
 K2 = st.number_input('输入自定义数值 K2', value = 0.93, format="%.2f")
@@ -39,6 +49,20 @@ except ValueError:
     st.error("下浮率Δ和下浮系数K必须是由逗号分隔的数字。")
     Q1s = default_Q1s
     K1s = default_K1s
+
+# 第4行: G1 和 G2 (使用内部列布局，让它们在同一行)
+st.markdown("---") # 添加分割线
+st.write("G1 & G2 设置 (仅当投标数 ≥7 家时生效)")
+g_col1, g_col2 = st.columns(2)
+with g_col1:
+    G1_percent = st.number_input("G1: 去除低价范围 (%)", min_value=0, max_value=49, value=15, step=1)
+with g_col2:
+    G2_percent = st.number_input("G2: 去除高价范围 (%)", min_value=0, max_value=49, value=15, step=1)
+
+if G1_percent + G2_percent >= 100:
+    st.error("G1和G2的百分比之和不能超过100%。")
+    st.stop()
+
 
 
 # 设置参数
@@ -135,8 +159,10 @@ if not df.empty:
     with col2:
         st.plotly_chart(fig_hist, use_container_width=True)
 
+  
+    st.subheader("详细数据表")
 
-
-    st.table(df)
+    df.index = pd.RangeIndex(start=1, stop=len(df) + 1, name='序号')
+    st.dataframe(df)
 else:
     st.error("没有有效的报价数据来计算评标基准价。")
