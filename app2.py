@@ -55,9 +55,9 @@ st.markdown("---") # 添加分割线
 st.write("G1 & G2 设置 (仅当投标数 ≥7 家时生效)")
 g_col1, g_col2 = st.columns(2)
 with g_col1:
-    G1_percent = st.number_input("G1: 去除低价范围 (%)", min_value=0, max_value=49, value=15, step=1)
+    G1_percent = st.number_input("G1: 去除低价范围 (%)", min_value=0, max_value=49, value=20, step=1)
 with g_col2:
-    G2_percent = st.number_input("G2: 去除高价范围 (%)", min_value=0, max_value=49, value=15, step=1)
+    G2_percent = st.number_input("G2: 去除高价范围 (%)", min_value=0, max_value=49, value=20, step=1)
 
 if G1_percent + G2_percent >= 100:
     st.error("G1和G2的百分比之和不能超过100%。")
@@ -66,7 +66,7 @@ if G1_percent + G2_percent >= 100:
 # 第5行: B 的来源选择
 st.markdown("---") # 添加分割线
 b_source = st.radio(
-    "选择 B 的值来源:",
+    "选择 B 值来源:",
     ('招标控制价', '自定义最高投标限价'),
     horizontal=True, # 让选项水平排列，更像 "bubble"
     key="b_source"
@@ -85,98 +85,98 @@ control_price = 1
 # 报价数量
 num_bids = len(bids)
 
-# 初始化一个空的 DataFrame
+# 初始化
 df = pd.DataFrame()
+A = 0
+A_description = "无有效报价"
 
-# 仅当有报价时才继续
-if bids:
+# 仅当有报价且Q1/K1列表不为空时才继续
+if bids and Q1s and K1s:
+    bids_for_A_calc = sorted(bids) # 计算A时需要升序列表
+    num_bids = len(bids_for_A_calc)
 
-  # 排序报价
-  bids.sort()
+    # 根据报价数量计算 A 值和其描述
+    if num_bids >= 7:
+        G1 = G1_percent / 100.0
+        G2 = G2_percent / 100.0
+        remove_low_num = int(round(num_bids * G1))
+        remove_high_num = int(round(num_bids * G2))
 
-  # 根据报价数量计算去除的报价数
-  remove_num = int(round(num_bids * 0.2))
+        if (remove_low_num + remove_high_num) >= num_bids:
+            st.error(f"G1({G1_percent}%)和G2({G2_percent}%)设置过高，所有 {num_bids} 个投标均被剔除。请调低G1/G2的值。")
+            st.stop()
+        
+        remaining_bids = bids_for_A_calc[remove_low_num : num_bids - remove_high_num]
+        A = statistics.mean(remaining_bids)
+        A_description = f"有效投标文件 ≥7 家时，去除最低的 {remove_low_num} 个 ({G1_percent}%) 和最高的 {remove_high_num} 个 ({G2_percent}%) 报价后的算术平均值。"
 
-  if num_bids >= 7:
-    bids = bids[remove_num:-remove_num]
+    elif 4 <= num_bids < 7:
+        remaining_bids = bids_for_A_calc[:-1] # 剔除最高报价
+        A = statistics.mean(remaining_bids)
+        A_description = "有效投标文件 4-6 家时，剔除最高投标报价后的算术平均值。"
 
-  elif 4 <= num_bids < 7:
-    bids = bids[:-1]
+    elif 1 <= num_bids < 4:
+        if num_bids > 1:
+            A = bids_for_A_calc[1] # 次低投标报价
+            A_description = "有效投标文件 < 4 家时，取次低投标报价。"
+        else: # 只有1个报价
+            A = bids_for_A_calc[0]
+            A_description = "有效投标文件只有1家，取其投标报价。"
+    
+    # 生成数据
+    data = []
+    for Q1 in Q1s:
+      for K1 in K1s:
+        benchmark = A * K1 * Q1 + B * K2 * (1 - Q1)
+        data.append([round(A, 6), Q1, K1, B, K2, round(1 - Q1, 2), round(benchmark, 6)])
 
-  else:
-    bids = bids[1]
-
-  # 计算平均价A
-  A = statistics.mean(bids)
-
-  # B为控制价
-  B = control_price
-
-  data = []
-  for Q1 in Q1s:
-    for K1 in K1s:
-      benchmark = A * K1 * Q1 + B * K2 * (1-Q1)
-      data.append([A, Q1, K1, B, K2, 1-Q1, benchmark])
-
-  df = pd.DataFrame(data, columns=[
-    'A', 'Q1', 'K1', 'B', 'K2',
-    '1-Q1', 'benchmark'])
+    df = pd.DataFrame(data, columns=['A', 'Q1', 'K1', 'B', 'K2', 'Q2 (1-Q1)', '评标基准价'])
+    df.index = pd.RangeIndex(start=1, stop=len(df) + 1, name='序号')
 
 
-# 确保 df 已定义且不为空再显示表格
+# 确保 df 已定义且不为空再显示结果
 if not df.empty:
-    st.title("评标基准价= A x K1 x Q1 + B x K2 x (1-Q1)")
+    st.markdown("### 评标基准价 = A × K1 × Q1 + B × K2 × Q2")
+    
+    # 参数注解
+    st.markdown(f"""
+    <div style="background-color: #f0f2f6; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+    <small><b>参数注解:</b></small>
+    <ul>
+      <li><b>A</b> = {A:.6f}。 (计算方式: {A_description})</li>
+      <li><b>B</b> = {B:.4f}。 (计算方式: {B_description})</li>
+      <li><b>Q2</b> = 1 - Q1。</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 图表容器
+    chart_container = st.container()
+    
+    bins = st.slider('调整直方图的bin数量:', min_value=1, max_value=len(df['评标基准价']), value=min(30, len(df['评标基准价'])))
 
     # 计算箱线图的统计数据
-    stats = df['benchmark'].describe(percentiles=[.25, .5, .75])
-    min_val = stats['min']
-    q1_val = stats['25%']
-    median_val = stats['50%']
-    q3_val = stats['75%']
-    max_val = stats['max']
-
-    # 设置刻度值和刻度标签，保留小数点六位
+    stats = df['评标基准价'].describe(percentiles=[.25, .5, .75])
+    min_val, q1_val, median_val, q3_val, max_val = stats['min'], stats['25%'], stats['50%'], stats['75%'], stats['max']
     tickvals = [min_val, q1_val, median_val, q3_val, max_val]
-    ticktext = [f"{min_val:.6f}", f"{q1_val:.6f}", f"{median_val:.6f}", f"{q3_val:.6f}", f"{max_val:.6f}"]
+    ticktext = [f"{v:.6f}" for v in tickvals]
 
-    # 在图表上方添加滑块以调整直方图的bin数量
-    bins = st.slider('调整直方图的bin数量:', min_value=1, max_value=len(df['benchmark']), value=30)
+    # 创建图表
+    fig_box = px.box(df, y='评标基准价', points="all", title="评标基准价分布 - 箱线图")
+    fig_box.update_layout(yaxis=dict(tickvals=tickvals, ticktext=ticktext))
+    
+    fig_hist = px.histogram(df, y='评标基准价', orientation='h', nbins=bins, title="评标基准价分布 - 直方图")
+    fig_hist.update_layout(bargap=0.1, yaxis=dict(tickvals=tickvals, ticktext=ticktext), xaxis_title='数量')
 
-    # 创建箱线图
-    fig_box = px.box(df, y='benchmark', points="all")
-    fig_box.update_layout(
-        autosize=True,
-        yaxis=dict(
-            tickvals=tickvals,
-            ticktext=ticktext
-        )
-    )
-    fig_box.update_yaxes(title='Benchmark')
-
-    # 创建水平直方图并根据滑块的值调整bin的数量
-    fig_hist = px.histogram(df, y='benchmark', orientation='h', nbins=bins)
-    fig_hist.update_layout(
-        bargap=0.1,
-        yaxis=dict(
-            tickvals=tickvals,
-            ticktext=ticktext
-        )
-    )
-    fig_hist.update_xaxes(title='Count')
-
-    # 用 Streamlit 的 columns 创建两列并排显示图表
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.plotly_chart(fig_box, use_container_width=True)
-
-    with col2:
-        st.plotly_chart(fig_hist, use_container_width=True)
-
-  
+    # 并排显示图表
+    with chart_container:
+        chart_col1, chart_col2 = st.columns(2)
+        with chart_col1:
+            st.plotly_chart(fig_box, use_container_width=True)
+        with chart_col2:
+            st.plotly_chart(fig_hist, use_container_width=True)
+    
     st.subheader("详细数据表")
-
-    df.index = pd.RangeIndex(start=1, stop=len(df) + 1, name='序号')
     st.dataframe(df)
 else:
-    st.error("没有有效的报价数据来计算评标基准价。")
+    st.warning("请输入有效的投标报价并设置参数以生成计算结果。")
